@@ -108,3 +108,11 @@ consultaSQL6 = """
                 WHERE total_empates = 17
                 """
 id_equipo = duckdb.sql(consultaSQL6).df()
+
+consultaSQL7 = """
+                SELECT DISTINCT team_long_name, total_empates AS empates_2013
+                FROM id_equipo
+                INNER JOIN equipo
+                ON team_id = team_api_id
+            """
+consulta_3 = duckdb.sql(consultaSQL7).df()
