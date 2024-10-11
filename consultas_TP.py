@@ -102,3 +102,9 @@ consultaSQL5 = """
                 """
 empates_por_equipo = duckdb.sql(consultaSQL5).df()
 
+consultaSQL6 = """
+                SELECT *
+                FROM empates_por_equipo
+                WHERE total_empates = 17
+                """
+id_equipo = duckdb.sql(consultaSQL6).df()
