@@ -116,3 +116,59 @@ consultaSQL7 = """
                 ON team_id = team_api_id
             """
 consulta_3 = duckdb.sql(consultaSQL7).df()
+# %%
+
+consultaSQL = """
+                SELECT home_team_api_id, home_team_goal
+                FROM partidos_alemania;
+            """
+goles_local = duckdb.sql(consultaSQL).df()
+
+consultaSQL2 = """
+                SELECT match_api_id, away_team_api_id, away_team_goal
+                FROM partidos_alemania;
+            """
+goles_visitante = duckdb.sql(consultaSQL2).df()
+
+consultaSQL3 = """
+                SELECT home_team_api_id, SUM(home_team_goal) AS total_goles_local
+                FROM goles_local
+                GROUP BY home_team_api_id;
+            """
+suma_goles_local = duckdb.sql(consultaSQL3).df()
+
+consultaSQL4 = """
+                SELECT away_team_api_id, SUM(away_team_goal) AS total_goles_visitante
+                FROM goles_visitante
+                GROUP BY away_team_api_id;
+            """
+suma_goles_visitante = duckdb.sql(consultaSQL4).df()
+
+consultaSQL5 = """
+                SELECT DISTINCT *
+                FROM suma_goles_local
+                INNER JOIN suma_goles_visitante
+                ON home_team_api_id = away_team_api_id;
+            """
+goles_por_equipo = duckdb.sql(consultaSQL5).df()
+
+consultaSQL6 = """
+                SELECT home_team_api_id AS team_id, total_goles_local + total_goles_visitante AS total_goles
+                FROM goles_por_equipo
+            """
+suma_goles_por_equipo = duckdb.sql(consultaSQL6).df()
+
+consultaSQL7 = """
+                SELECT *
+                FROM suma_goles_por_equipo
+                WHERE total_goles = (SELECT MAX(total_goles) FROM suma_goles_por_equipo);
+            """
+id_equipo2 = duckdb.sql(consultaSQL7).df()
+
+consultaSQL8 = """
+                SELECT DISTINCT team_long_name, total_goles
+                FROM id_equipo2
+                INNER JOIN equipo
+                ON team_id = team_api_id
+            """
+consulta_4 = duckdb.sql(consultaSQL8).df()
