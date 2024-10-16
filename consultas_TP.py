@@ -9,6 +9,10 @@ Created on Thu Oct 10 16:27:13 2024
 import pandas as pd
 import duckdb
 from inline_sql import sql, sql_val
+import numpy as np
+import matplotlib.pyplot as plt # Para graficar series multiples
+from   matplotlib import ticker   # Para agregar separador de miles
+import seaborn as sns           # Para graficar histograma
 
 #%%===========================================================================
 # Importamos los datasets que vamos a utilizar en este programa
@@ -594,3 +598,300 @@ consultaSQL = """
     
 jugadores_menor_variacion = duckdb.sql(consultaSQL).df()
 
+#%%===========================================================================
+partido['date'] = pd.to_datetime(partido['date'], errors='coerce') 
+
+consultaSQL = """
+                SELECT *
+                FROM partido
+                WHERE country_id = 7809  AND 2013 <= YEAR(date) AND YEAR(date) <= 2016
+            """
+
+partidos_alemania_con_empates = duckdb.sql(consultaSQL).df()
+
+consultaSQL = """
+                SELECT home_team_api_id, home_team_goal, YEAR(date) AS year
+                FROM partidos_alemania_con_empates
+                WHERE YEAR(date) = 2013 OR YEAR(date) = 2014 OR YEAR(date) = 2015 OR YEAR(date) = 2016;
+            """
+goles_local = duckdb.sql(consultaSQL).df()
+
+consultaSQL2 = """
+                SELECT away_team_api_id, away_team_goal, YEAR(date) AS year
+                FROM partidos_alemania_con_empates
+                WHERE YEAR(date) = 2013 OR YEAR(date) = 2014 OR YEAR(date) = 2015 OR YEAR(date) = 2016;
+            """
+goles_visitante = duckdb.sql(consultaSQL2).df()
+
+consultaSQL3 = """
+                SELECT year, home_team_api_id as team_id, SUM(home_team_goal) AS total_goles
+                FROM goles_local
+                GROUP BY team_id, year
+                
+                UNION ALL
+                
+                SELECT year, away_team_api_id as team_id, SUM(away_team_goal) AS total_goles
+                FROM goles_visitante
+                GROUP By team_id, year
+                ORDER BY team_id ASC;
+            """
+suma_goles = duckdb.sql(consultaSQL3).df()
+
+consultaSQL6 = """
+                SELECT year, team_id, SUM(total_goles) as total_goles
+                FROM suma_goles
+                GROUP BY team_id, year
+                ORDER BY team_id ASC;
+            """
+suma_goles_por_equipo = duckdb.sql(consultaSQL6).df()
+
+consultaSQL8 = """
+                SELECT DISTINCT year, team_long_name, total_goles
+                FROM suma_goles_por_equipo
+                INNER JOIN equipo
+                ON team_id = team_api_id
+                ORDER BY year 
+            """
+goles_a_favor_por_equipo = duckdb.sql(consultaSQL8).df()
+
+
+#%%
+
+#### 9. HEATMAP + DENDOGRAMA
+
+
+df = goles_a_favor_por_equipo.pivot(index='team_long_name', columns='year', values='total_goles') # Cargamos los datos
+
+
+# Rellenamos los valores NaN con 0
+df = df.fillna(0)
+
+# Generamos el grafico por defecto
+#sns.clustermap(df) 
+# Las escalas de las distintas columnas son muy distintas!
+# Necesitamos estandarizar los datos a la hora de graficar
+
+# Generamos el grafico mejorando la información mostrada
+sns.clustermap(df,
+               row_cluster = False,     # elimina el dendograma izquierdo
+               col_cluster = False,    # elimina el dendograma superior
+               cmap = "Greens",         # paleta de colores
+               standard_scale = 1)     # estandarizamos los datos de c/ columna
+plt.show()
+
+#%%===========================================================================
+
+consultaSQL = """
+                SELECT home_team_api_id, away_team_goal, YEAR(date) AS year
+                FROM partidos_alemania_con_empates
+                WHERE YEAR(date) = 2013 OR YEAR(date) = 2014 OR YEAR(date) = 2015 OR YEAR(date) = 2016;
+            """
+goles_en_contra_local = duckdb.sql(consultaSQL).df()
+
+consultaSQL2 = """
+                SELECT away_team_api_id, home_team_goal, YEAR(date) AS year
+                FROM partidos_alemania_con_empates
+                WHERE YEAR(date) = 2013 OR YEAR(date) = 2014 OR YEAR(date) = 2015 OR YEAR(date) = 2016;
+            """
+goles_en_contra_visitante = duckdb.sql(consultaSQL2).df()
+
+consultaSQL3 = """
+                SELECT year, home_team_api_id as team_id, SUM(away_team_goal) AS total_goles
+                FROM goles_en_contra_local
+                GROUP BY team_id, year
+                
+                UNION ALL
+                
+                SELECT year, away_team_api_id as team_id, SUM(home_team_goal) AS total_goles
+                FROM goles_en_contra_visitante
+                GROUP By team_id, year
+                ORDER BY team_id ASC;
+            """
+suma_goles_en_contra = duckdb.sql(consultaSQL3).df()
+
+consultaSQL6 = """
+                SELECT year, team_id, SUM(total_goles) as total_goles
+                FROM suma_goles_en_contra
+                GROUP BY team_id, year
+                ORDER BY team_id ASC;
+            """
+suma_goles_en_contra_por_equipo = duckdb.sql(consultaSQL6).df()
+
+consultaSQL8 = """
+                SELECT DISTINCT year, team_long_name, total_goles
+                FROM suma_goles_en_contra_por_equipo
+                INNER JOIN equipo
+                ON team_id = team_api_id
+                ORDER BY year 
+            """
+goles_en_contra_por_equipo = duckdb.sql(consultaSQL8).df()
+
+#%%
+
+#### 9. HEATMAP + DENDOGRAMA
+
+
+df = goles_en_contra_por_equipo.pivot(index='team_long_name', columns='year', values='total_goles') # Cargamos los datos
+
+
+# Rellenamos los valores NaN con 0
+df = df.fillna(0)
+
+# Generamos el grafico por defecto
+#sns.clustermap(df) 
+# Las escalas de las distintas columnas son muy distintas!
+# Necesitamos estandarizar los datos a la hora de graficar
+
+# Generamos el grafico mejorando la información mostrada
+sns.clustermap(df,
+               row_cluster = False,    # elimina el dendograma izquierdo
+               col_cluster = False,    # elimina el dendograma superior
+               cmap = "Reds",         # paleta de colores
+               standard_scale = 1)     # estandarizamos los datos de c/ columna
+plt.show()
+
+#%%
+#Graficamos el promedio de gol de los equipos a lo largo de los años 2013 a 2016
+
+
+consultaSQL = """
+                SELECT home_team_api_id AS team_api_id, date
+                FROM partidos_alemania_con_empates
+                
+                UNION ALL
+                
+                SELECT away_team_api_id AS team_api_id, date
+                FROM partidos_alemania_con_empates
+            """
+ids_equipos = duckdb.sql(consultaSQL).df()
+
+consultaSQL = """
+        SELECT DISTINCT team_api_id, YEAR(date) AS year
+        FROM  ids_equipos
+        WHERE YEAR(date) = 2013 
+        ORDER BY team_api_id
+            """
+ids_equipos_2013 = duckdb.sql(consultaSQL).df()
+
+consultaSQL = """
+        SELECT DISTINCT team_api_id, YEAR(date) AS year
+        FROM  ids_equipos
+        WHERE YEAR(date) = 2014 
+        ORDER BY team_api_id
+            """
+ids_equipos_2014 = duckdb.sql(consultaSQL).df()
+
+consultaSQL = """
+        SELECT DISTINCT team_api_id, YEAR(date) AS year
+        FROM  ids_equipos
+        WHERE YEAR(date) = 2015 
+        ORDER BY team_api_id
+            """
+ids_equipos_2015 = duckdb.sql(consultaSQL).df()
+
+consultaSQL = """
+        SELECT DISTINCT team_api_id, YEAR(date) AS year
+        FROM  ids_equipos
+        WHERE YEAR(date) = 2016 
+        ORDER BY team_api_id
+            """
+ids_equipos_2016 = duckdb.sql(consultaSQL).df()
+
+consultaSQL = """
+        SELECT team_api_id
+        FROM (SELECT *
+              FROM ids_equipos_2013
+              
+              UNION ALL 
+              
+              SELECT *
+              FROM ids_equipos_2014
+              
+              UNION ALL
+              
+              SELECT *
+              FROM ids_equipos_2015
+              
+              UNION ALL
+              
+              SELECT *
+              FROM ids_equipos_2016
+              )
+        ORDER BY team_api_id
+            """
+ids_equipos = duckdb.sql(consultaSQL).df()
+
+consultaSQL = """
+                SELECT team_api_id, COUNT(team_api_id) AS anios_jugados
+                FROM ids_equipos
+                GROUP BY team_api_id
+                ORDER BY team_api_id
+            """
+ids_equipos = duckdb.sql(consultaSQL).df()
+
+consultaSQL = """
+                SELECT team_api_id
+                FROM ids_equipos
+                WHERE anios_jugados = 4
+                ORDER BY team_api_id
+            """
+ids_equipos = duckdb.sql(consultaSQL).df() #esta es la lista de ids de equipos que jugaron al menos una vez en cada año del periodo seleccionado
+
+
+consultaSQL = """
+                SELECT YEAR(date) AS year, home_team_api_id AS team_api_id, home_team_goal AS goals
+                FROM partidos_alemania_con_empates
+                INNER JOIN ids_equipos
+                ON ids_equipos.team_api_id = partidos_alemania_con_empates.home_team_api_id
+                
+                UNION ALL
+                
+                SELECT YEAR(date) AS year, away_team_api_id AS team_api_id, away_team_goal AS goals
+                FROM partidos_alemania_con_empates
+                INNER JOIN ids_equipos
+                ON ids_equipos.team_api_id = partidos_alemania_con_empates.away_team_api_id
+                
+                ORDER BY team_api_id, year
+            """
+goles_por_anio = duckdb.sql(consultaSQL).df()
+
+
+consultaSQL = """
+                SELECT DISTINCT year, team_long_name AS team, AVG(goals) AS avg_goals
+                FROM goles_por_anio
+                INNER JOIN equipo
+                ON goles_por_anio.team_api_id = equipo.team_api_id
+                GROUP BY team, year
+                ORDER BY year
+            """
+promedio_goles_por_anio = duckdb.sql(consultaSQL).df()
+
+#%%
+# Generamos el grafico 
+fig, ax = plt.subplots()
+
+# Itera sobre todas las columnas (equipos) y las grafica
+for team in df.columns:
+    ax.plot(df.index, df[team], 
+            marker='.', linestyle='-', linewidth=0.5, label=team)
+
+# Agregamos título, etiquetas y leyenda
+ax.set_title('Promedio goles por año para los equipos')
+ax.set_xlabel('Año')
+ax.set_ylabel('Promedio de goles por partido')
+
+# Ajustamos los límites del gráfico
+ax.set_xlim(df.index.min() -0.15, df.index.max() + 0.25)
+ax.set_ylim(0, df.max().max())
+
+# Configura las etiquetas del eje X para mostrar solo 2013, 2014, 2015 y 2016
+ax.set_xticks([2013, 2014, 2015, 2016])
+
+# Muestra la leyenda con los nombres de los equipos
+ax.legend(bbox_to_anchor=(1.05, 1), loc='upper left', fontsize='small')  # Leyenda fuera del gráfico para que no lo superponga
+
+# Ajusta el gráfico para no cortar la leyenda
+plt.tight_layout()
+
+# Muestra el gráfico
+plt.show()
