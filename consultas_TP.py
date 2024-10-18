@@ -452,6 +452,8 @@ cant_jugadores_por_equipo_nombres = duckdb.sql(consultaSQL).df()
 #%%===========================================================================
 #¿Cuál es el jugador con mayor cantidad de goles?
 
+#Se habló en clase que no era obligatorio hacer esta consulta
+
 #%%===========================================================================
 #¿Cuáles son los jugadores cuyo equipo ganó más partidos?
 # De nuevo, no importan los partidos empatados
