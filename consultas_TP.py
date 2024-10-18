@@ -425,16 +425,6 @@ consultaSQL = """
             """
 planteles_alemania = duckdb.sql(consultaSQL).df()
 
-
-consultaSQL = """
-                SELECT player_api_id, season, COUNT(team_api_id) AS equipos_por_temp
-                FROM planteles_alemania
-                GROUP BY player_api_id, season
-                ORDER BY equipos_por_temp DESC
-                """
-planteles_alemania_sin_equipos = duckdb.sql(consultaSQL).df()
-
-
 consultaSQL = """
                 SELECT DISTINCT team_api_id, player_api_id
                 FROM planteles_alemania
